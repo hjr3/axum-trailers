@@ -5,15 +5,19 @@
 //! ```
 
 use axum::{
+    body::StreamBody,
     extract::Host,
     handler::HandlerWithoutStateExt,
     http::{StatusCode, Uri},
+    response::IntoResponse,
     response::Redirect,
+    response::Response,
     routing::get,
     BoxError, Router,
 };
 use axum_server::tls_rustls::RustlsConfig;
-use std::{net::SocketAddr, path::PathBuf};
+use std::{convert::Infallible, net::SocketAddr, path::PathBuf};
+use tokio::sync::mpsc;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 #[derive(Clone, Copy)]
@@ -62,8 +66,22 @@ async fn main() {
         .unwrap();
 }
 
-async fn handler() -> &'static str {
-    "Hello, World!"
+async fn handler() -> impl IntoResponse {
+    let (tx, rx) = mpsc::channel::<Result<String, Infallible>>(2);
+
+    tokio::spawn(async move {
+        tx.send(Ok("hello...".to_string())).await.unwrap();
+        tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+        tx.send(Ok("world".to_string())).await.unwrap();
+    });
+
+    let stream = tokio_stream::wrappers::ReceiverStream::new(rx);
+    let body = StreamBody::new(stream);
+
+    Response::builder()
+        .status(StatusCode::OK)
+        .body(body)
+        .unwrap()
 }
 
 async fn redirect_http_to_https(ports: Ports) {
