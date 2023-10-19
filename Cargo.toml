@@ -7,6 +7,9 @@ publish = false
 [dependencies]
 axum = { version = "0.6.20", features = ["http2"] }
 axum-server = { version = "0.3", features = ["tls-rustls"] }
+futures-util = "0.3.28"
+pin-project-lite = "0.2.13"
+sync_wrapper = "0.1.2"
 tokio = { version = "1", features = ["full"] }
 tokio-stream = "0.1.14"
 tracing = "0.1"

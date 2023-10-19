@@ -4,8 +4,9 @@
 //! cargo run -p example-tls-rustls
 //! ```
 
+mod stream_body;
+
 use axum::{
-    body::StreamBody,
     extract::Host,
     handler::HandlerWithoutStateExt,
     http::{StatusCode, Uri},
@@ -19,6 +20,8 @@ use axum_server::tls_rustls::RustlsConfig;
 use std::{convert::Infallible, net::SocketAddr, path::PathBuf};
 use tokio::sync::mpsc;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
+
+use crate::stream_body::StreamBody;
 
 #[derive(Clone, Copy)]
 struct Ports {
@@ -76,10 +79,15 @@ async fn handler() -> impl IntoResponse {
     });
 
     let stream = tokio_stream::wrappers::ReceiverStream::new(rx);
-    let body = StreamBody::new(stream);
+    let mut body = StreamBody::new(stream);
+    let mut headers = axum::http::HeaderMap::new();
+    headers.insert("chunky-trailer", "foo".parse().unwrap());
+
+    body.set_trailers(headers);
 
     Response::builder()
         .status(StatusCode::OK)
+        .header("Trailers", "chunky-trailer")
         .body(body)
         .unwrap()
 }
